@@ -32,7 +32,7 @@ rating_list = [
     },
 ]
 
-sleep_time = 10
+sleep_time = config("SLEEP_TIMER", cast=int, default=1)
 
 
 def get_email_from_website(url):

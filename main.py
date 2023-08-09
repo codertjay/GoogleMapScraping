@@ -20,26 +20,30 @@ def create_item_task(csv_file_path):
 
         # Skip the header row (first row)
         next(csv_reader)
-
+        all_categories = []
+        all_places = []
         for row in csv_reader:
-            try:
-                query = row[0]  # Assuming query is in the first column (index 0)
-                category = row[1]  # Assuming category is in the second column (index 1)
-                all_places.append(get_all_place(query, category))
-                with open("all_places.json", 'w') as json_file:
-                    json.dump(all_places, json_file, indent=4)
+            all_categories.append(row[0])
+            all_places.append(row[1])
+        # loop through all the categories each categories will go through for all places
+        for category in all_categories:
+            for place in all_places:
+                try:
 
-            except Exception as e:
-                print("Error:", e)
-                # In case of an error, write the data to a JSON file
-                error_data = {
-                    "query": query,
-                    "category": category,
-                    "error": str(e)
-                }
-                with open("error_data.json", 'a') as json_file:
-                    json.dump(error_data, json_file, indent=4)
-                    json_file.write('\n')  # Add a new line after each entry
+                    all_places.append(get_all_place(category, place))
+                    with open("all_places.json", 'w') as json_file:
+                        json.dump(all_places, json_file, indent=4)
+                except Exception as e:
+                    print("Error:", e)
+                    # In case of an error, write the data to a JSON file
+                    error_data = {
+                        "query": query,
+                        "category": category,
+                        "error": str(e)
+                    }
+                    with open("error_data.json", 'a') as json_file:
+                        json.dump(error_data, json_file, indent=4)
+                        json_file.write('\n')  # Add a new line after each entry
     return all_places
 
 
