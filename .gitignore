@@ -1,2 +1,4 @@
 .env
 .gitignore
+
+all_places.json
