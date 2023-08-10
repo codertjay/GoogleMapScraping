@@ -10,38 +10,48 @@ def create_new_csv(places_dict_list, file_name):
     """
     this is used to create a  csv using the file name and the current places dictionary
     """
-    # Get the field names from the keys of the first JSON object
-    fieldnames = places_dict_list[0].keys()
-    # write into the csv file
+    try:
+        # Get the field names from the keys of the first JSON object
+        fieldnames = places_dict_list[0].keys()
+        # write into the csv file
 
-    print("The file name is :", file_name)
-    print("Converting scraped data to csv ")
-    print("🤭===================================🤭===================================🤭")
-    print("🤭===================================🤭===================================🤭")
-    with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
-        csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        print("The file name is :", file_name)
+        print("Converting scraped data to csv ")
+        print("🤭===================================🤭===================================🤭")
+        print("🤭===================================🤭===================================🤭")
+        with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
+            csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
-        # Write the CSV header
-        csv_writer.writeheader()
+            # Write the CSV header
+            csv_writer.writeheader()
 
-        # Write each JSON object as a row in the CSV file
-        for json_obj in places_dict_list:
-            csv_writer.writerow(json_obj)
+            # Write each JSON object as a row in the CSV file
+            for json_obj in places_dict_list:
+                csv_writer.writerow(json_obj)
+    except Exception as a:
+        print(a)
+        pass
 
 
 def create_item_task(csv_file_path, file_name):
     """
     This function updates items based on data from a CSV file.
 
+
     :param csv_file_path: Path to the CSV file.
     :return: List of updated places.
+
+
+
     """
     all_places_dict = []
 
     with open(csv_file_path, 'r', newline='', encoding='utf-8') as csv_file:
+
         csv_reader = csv.reader(csv_file)
 
         # Skip the header row (first row)
+
         next(csv_reader)
         all_categories = []
         all_places = []
@@ -74,6 +84,7 @@ def create_item_task(csv_file_path, file_name):
 
 def convert_searched_dictionary_to_csv():
     """
+
     this is used to load from and search from the csv
     :return:
     """
@@ -84,8 +95,6 @@ def convert_searched_dictionary_to_csv():
     # always replace this with the csv
     all_places_dict = create_item_task(csv_file_path="csv_file.csv", file_name=file_name)
 
-    # Get the field names from the keys of the first JSON object
-    create_new_csv(all_places_dict, file_name)
 
 
 # run the search query

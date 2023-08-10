@@ -346,3 +346,6 @@ def get_place_detail_and_save(place_id):
     finally:
         signal.alarm(0)  # Cancel the alarm in case of any outcome (success or exception)
     return place_detail_dict
+
+
+
