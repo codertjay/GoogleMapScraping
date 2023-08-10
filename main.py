@@ -62,8 +62,9 @@ def create_item_task(csv_file_path, file_name):
         for category in all_categories:
             for place in all_places:
                 try:
-
-                    all_places_dict += get_all_place(category, place)
+                    place_dict = get_all_place(category, place)
+                    if place_dict:
+                        all_places_dict += place_dict
                     with open("all_places.json", 'w') as json_file:
                         #  dump the json and also write the csv
                         json.dump(all_places_dict, json_file, indent=4)
@@ -94,7 +95,6 @@ def convert_searched_dictionary_to_csv():
 
     # always replace this with the csv
     all_places_dict = create_item_task(csv_file_path="csv_file.csv", file_name=file_name)
-
 
 
 # run the search query
