@@ -1,4 +1,5 @@
 import re
+import signal
 import time
 from urllib.parse import urlencode
 
@@ -32,31 +33,50 @@ rating_list = [
     },
 ]
 
-sleep_time = config("SLEEP_TIMER", cast=int, default=1)
+sleep_time = config("SLEEP_TIMER", cast=int, default=0)
+timeout = config("TIME_OUT", cast=int, default=3)
+
+timeout_duration = 8
+
+
+class TimeoutException(Exception):
+    """Exception class for a timeout"""
+    pass
+
+
+def timeout_handler(signum, frame):
+    """Handler function to be called when alarm signal is received"""
+    raise TimeoutException()
 
 
 def get_email_from_website(url):
+    email = None
     try:
         """This gets an email address"""
-        response = requests.get(url, timeout=5)
+
+        response = requests.get(url, timeout=timeout)
         # Extract all emails from the website
 
         emails = re.findall(r'\b(?!.*@sentry\.com)[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', response.text)
-
         for email in emails:
             if "sentry" not in email:
-                return email
-        return None
+                email = email
+                break
+
+    except TimeoutException:
+        print("Operation timed out")
     except Exception as a:
         print("a", a)
-        return None
+    return email
 
 
 def get_social_media_links(url):
+    # Set the signal to be sent after timeout_duration
+
     social_media_links = ""
 
     try:
-        response = requests.get(url, timeout=5)
+        response = requests.get(url, timeout=timeout)
         html_content = response.text
 
         # Define regular expressions for each social media platform
@@ -76,7 +96,6 @@ def get_social_media_links(url):
             "YouTube_Channel": list(set(re.findall(youtube_channel_regex, html_content))),
             "YouTube_User": list(set(re.findall(youtube_user_regex, html_content))),
         }
-
         # Format the social media links as a string with the requested format
         for key, value in links.items():
             try:
@@ -98,8 +117,10 @@ def get_social_media_links(url):
                 elif key == "YouTube_User":
                     if len(value) > 0:
                         social_media_links += f"YouTube_Channel:  https://www.youtube.com/user/{value[-1]}/  "
-            except Exception as a:
-                print(a)
+            except:
+                pass
+    except TimeoutException:
+        print("Operation timed out")
     except Exception as a:
         print("Error getting social")
     return social_media_links
@@ -143,59 +164,64 @@ def get_all_place(category, place):
     place_ids = []
 
     all_places_details = []
+    try:
 
-    # Use textsearch
-    for rating in rating_list:
+        # Use textsearch
+        for rating in rating_list:
+            try:
+                query_string = f'{category} in {place}&minimum_rating={rating.get("minimum_rating")}&maximum_rating={rating.get("maximum_rating")}'
+                # add the place ids
+                place_ids += get_textsearch(query_string)
+            except:
+                pass
+
+        # Get open now and close now
         try:
-            query_string = f'{category} in {place}&minimum_rating={rating.get("minimum_rating")}&maximum_rating={rating.get("maximum_rating")}'
+
+            query_string = f'{category} in {place}&opennow=true'
+            # add the place ids
+            place_ids += get_textsearch(query_string)
+        except:
+            pass
+        # Get open now and close now
+        try:
+
+            query_string = f'{category} in {place}&opennow=false'
+            # add the place ids
+            place_ids += get_textsearch(query_string)
+        except:
+            pass
+        # Get base on price
+        for price in range(0, 4):
+            try:
+
+                query_string = f'{category} in {place}&minprice={price}&maxprice={price + 1}&'
+                # add the place ids
+                place_ids += get_textsearch(query_string)
+            except:
+                pass
+        # Get base on type
+        try:
+            query_string = f'{category}&type={place.lower()}&'
             # add the place ids
             place_ids += get_textsearch(query_string)
         except:
             pass
 
-    # Get open now and close now
-    try:
+        # Deduplicate the place IDs
+        place_ids = list(set(place_ids))
 
-        query_string = f'{category} in {place}&opennow=true'
-        # add the place ids
-        place_ids += get_textsearch(query_string)
+        for place_id in place_ids:
+            try:
+                time.sleep(sleep_time)
+                place_detail_dict = get_place_detail_and_save(place_id)
+                # if the place detail was returned
+                if place_detail_dict:
+                    all_places_details.append(place_detail_dict)
+            except:
+                pass
     except:
         pass
-    # Get open now and close now
-    try:
-
-        query_string = f'{category} in {place}&opennow=false'
-        # add the place ids
-        place_ids += get_textsearch(query_string)
-    except:
-        pass
-    # Get base on price
-    for price in range(0, 4):
-        try:
-
-            query_string = f'{category} in {place}&minprice={price}&maxprice={price + 1}&'
-            # add the place ids
-            place_ids += get_textsearch(query_string)
-        except:
-            pass
-    # Get base on type
-    try:
-        query_string = f'{category}&type={place.lower()}&'
-        # add the place ids
-        place_ids += get_textsearch(query_string)
-    except:
-        pass
-
-    # Deduplicate the place IDs
-    place_ids = list(set(place_ids))
-
-    for place_id in place_ids:
-        time.sleep(sleep_time)
-
-        place_detail_dict = get_place_detail_and_save(place_id)
-        # if the place detail was returned
-        if place_detail_dict:
-            all_places_details.append(place_detail_dict)
     return all_places_details
 
 
@@ -205,106 +231,118 @@ def get_place_detail_and_save(place_id):
     :param place_id:
     :return:
     """
-    # Set up API parameters
-    params = {
-        "place_id": place_id,
-        "key": api_key
-    }
-    place_detail_dict = {
+    # Set the signal to be sent after timeout_duration
+    signal.signal(signal.SIGALRM, timeout_handler)
+    # max seconds is 60
+    signal.alarm(30)
+    place_detail_dict = None
 
-    }
-    # Send API request
-    response = requests.get("https://maps.googleapis.com/maps/api/place/details/json", params=params)
-    if response.status_code == 200:
-        data = response.json().get("result")
-        #  if no data pass
-        if not data:
-            return False
-        website = data.get("website")
-        business_name = data.get("name")
-        full_address = data.get("formatted_address")
-        street = data.get("vicinity")
-        phone_number = data.get("formatted_phone_number")
-        cid = data["url"].split("=")[-1]
-        opening_hours = data.get("opening_hours", {}).get("weekday_text")
-        if opening_hours:
-            opening_hours_formatted = []
-            for hours in opening_hours:
-                day, open_close_hours = hours.split(": ")
-                opening_hours_formatted.append(f"{day}: [{open_close_hours}]")
-            opening_hours = ", ".join(opening_hours_formatted)
-        else:
-            opening_hours = "Not Available"
-        google_map_url = data["url"]
-        latitude = data["geometry"]["location"]["lat"]
-        longitude = data["geometry"]["location"]["lng"]
-        reviews_url = f"https://search.google.com/local/reviews?{urlencode({'placeid': place_id, 'q': business_name + ', ' + full_address, 'authuser': 0, 'hl': 'en', 'gl': 'US'})}"
-        average_rating = data.get("rating")
-        review_count = data.get("user_ratings_total")
-        categories = ", ".join(category for category in data.get("types", []))
-        phones = data.get("international_phone_number")
-        plus_code = data.get("plus_code", {}).get("global_code", "")
-        municipality = "Not Available"
-        if 'address_components' in data:
-            city = state = zip_code = None
-            for component in data.get("address_components", []):
-                if 'locality' in component.get('types', []):
-                    city = component['long_name']
-                elif 'administrative_area_level_1' in component.get('types', []):
-                    state = component.get('short_name', [])
-                elif 'postal_code' in component.get('types', []):
-                    zip_code = component.get('long_name', [])
-                if city and state and zip_code:
-                    break
-            if city and state:
-                municipality = f"{city}, {state} {zip_code}"
+    try:
+        # Set up API parameters
+        params = {
+            "place_id": place_id,
+            "key": api_key
+        }
 
-        # Get social media links
-        social_media_links = "Not Available"
-        if website:
-            social_media_links = get_social_media_links(website)
+        print(f'{"=" * 20} 20%')
+        # Send API request
+        response = requests.get("https://maps.googleapis.com/maps/api/place/details/json", params=params)
+        print(f'{"=" * 40} 40%')
 
-        #  if length is greater than zero
-        image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX1mtYL8f3jCPWwGO9yCiCJlbi8LikmuJMew"
-        if data.get("photos"):
-            #  get the real image url
-            image = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={data.get('photos')[0].get('photo_reference')}&key={api_key}"
-            response = requests.head(image, allow_redirects=True)
-            image = response.url
-
-        try:
-            if website:
-                email = get_email_from_website(website)
+        if response.status_code == 200:
+            data = response.json().get("result")
+            #  if no data pass
+            if not data:
+                return False
+            website = data.get("website")
+            business_name = data.get("name")
+            full_address = data.get("formatted_address")
+            street = data.get("vicinity")
+            phone_number = data.get("formatted_phone_number")
+            cid = data["url"].split("=")[-1]
+            opening_hours = data.get("opening_hours", {}).get("weekday_text")
+            if opening_hours:
+                opening_hours_formatted = []
+                for hours in opening_hours:
+                    day, open_close_hours = hours.split(": ")
+                    opening_hours_formatted.append(f"{day}: [{open_close_hours}]")
+                opening_hours = ", ".join(opening_hours_formatted)
             else:
-                email = None
+                opening_hours = "Not Available"
+            google_map_url = data["url"]
+            latitude = data["geometry"]["location"]["lat"]
+            longitude = data["geometry"]["location"]["lng"]
+            reviews_url = f"https://search.google.com/local/reviews?{urlencode({'placeid': place_id, 'q': business_name + ', ' + full_address, 'authuser': 0, 'hl': 'en', 'gl': 'US'})}"
+            average_rating = data.get("rating")
+            review_count = data.get("user_ratings_total")
+            categories = ", ".join(category for category in data.get("types", []))
+            phones = data.get("international_phone_number")
+            plus_code = data.get("plus_code", {}).get("global_code", "")
+            municipality = "Not Available"
+            if 'address_components' in data:
+                city = state = zip_code = None
+                for component in data.get("address_components", []):
+                    if 'locality' in component.get('types', []):
+                        city = component['long_name']
+                    elif 'administrative_area_level_1' in component.get('types', []):
+                        state = component.get('short_name', [])
+                    elif 'postal_code' in component.get('types', []):
+                        zip_code = component.get('long_name', [])
+                    if city and state and zip_code:
+                        break
+                if city and state:
+                    municipality = f"{city}, {state} {zip_code}"
 
-            print("Added Placed Detail for place id: ", place_id)
+            # Get social media links
+            social_media_links = "Not Available"
+            if website:
+                social_media_links = get_social_media_links(website)
 
-            place_detail_dict["phone_number"] = phone_number
-            place_detail_dict["place_id"] = place_id
-            place_detail_dict["email"] = email
-            place_detail_dict["business_name"] = business_name
-            place_detail_dict["full_address"] = full_address
-            place_detail_dict["street"] = street
-            place_detail_dict["cid"] = cid
-            place_detail_dict["image"] = image
-            place_detail_dict["municipality"] = municipality
-            place_detail_dict["plus_code"] = plus_code
-            place_detail_dict["social_media_links"] = social_media_links
-            place_detail_dict["opening_hours"] = opening_hours
-            place_detail_dict["google_map_url"] = google_map_url
-            place_detail_dict["latitude"] = latitude
-            place_detail_dict["longitude"] = longitude
-            place_detail_dict["reviews_url"] = reviews_url
-            place_detail_dict["average_rating"] = average_rating
-            place_detail_dict["review_count"] = review_count
-            place_detail_dict["website"] = website
-            place_detail_dict["categories"] = categories
-            place_detail_dict["phones"] = phones
+            print(f'{"=" * 60} 60%')
+            #  if length is greater than zero
+            image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSX1mtYL8f3jCPWwGO9yCiCJlbi8LikmuJMew"
+            if data.get("photos"):
+                #  get the real image url
+                image = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={data.get('photos')[0].get('photo_reference')}&key={api_key}"
+                response = requests.head(image, allow_redirects=True)
+                image = response.url
+            print(f'{"=" * 80} 80%')
+            try:
+                if website:
+                    email = get_email_from_website(website)
+                else:
+                    email = None
+                print(f'{"=" * 100} 100%')
+                print("Added Placed Detail for place id: ", place_id)
+                place_detail_dict = {}
+                place_detail_dict["phone_number"] = phone_number
+                place_detail_dict["place_id"] = place_id
+                place_detail_dict["email"] = email
+                place_detail_dict["business_name"] = business_name
+                place_detail_dict["full_address"] = full_address
+                place_detail_dict["street"] = street
+                place_detail_dict["cid"] = cid
+                place_detail_dict["image"] = image
+                place_detail_dict["municipality"] = municipality
+                place_detail_dict["plus_code"] = plus_code
+                place_detail_dict["social_media_links"] = social_media_links
+                place_detail_dict["opening_hours"] = opening_hours
+                place_detail_dict["google_map_url"] = google_map_url
+                place_detail_dict["latitude"] = latitude
+                place_detail_dict["longitude"] = longitude
+                place_detail_dict["reviews_url"] = reviews_url
+                place_detail_dict["average_rating"] = average_rating
+                place_detail_dict["review_count"] = review_count
+                place_detail_dict["website"] = website
+                place_detail_dict["categories"] = categories
+                place_detail_dict["phones"] = phones
+            except Exception as a:
+                print("error occurred ", a)
 
-            return place_detail_dict
-        except Exception as a:
-            print("error occurred creating history", a)
-            return None
-        # this returns the dictinary
+    except TimeoutException:
+        print("Operation timed out")
+    except Exception as a:
+        print("a", a)
+    finally:
+        signal.alarm(0)  # Cancel the alarm in case of any outcome (success or exception)
     return place_detail_dict
