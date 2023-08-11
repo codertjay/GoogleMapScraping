@@ -213,10 +213,7 @@ def get_all_place(category, place):
         place_ids = list(set(place_ids))
 
         for place_id in place_ids:
-            # todo: remove later
-            if type(all_places_details) == list:
-                if len(all_places_details) > 5:
-                    continue
+
             try:
                 time.sleep(sleep_time)
                 place_detail_dict = run_with_timeout(get_place_detail_and_save, detail_timeout, place_id)
