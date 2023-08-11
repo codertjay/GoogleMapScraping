@@ -214,6 +214,7 @@ def get_all_place(category, place):
         for place_id in place_ids:
             try:
                 time.sleep(sleep_time)
+                print("Get place detail ", place_id)
                 place_detail_dict = get_place_detail_and_save(place_id)
                 # if the place detail was returned
 
