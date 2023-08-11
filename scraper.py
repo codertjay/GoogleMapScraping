@@ -216,7 +216,9 @@ def get_all_place(category, place):
                 time.sleep(sleep_time)
                 place_detail_dict = get_place_detail_and_save(place_id)
                 # if the place detail was returned
+
                 if place_detail_dict:
+                    print("place_detail_dict", place_detail_dict)
                     all_places_details.append(place_detail_dict)
             except:
                 pass
