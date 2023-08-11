@@ -138,6 +138,9 @@ def get_textsearch(query_string):
         # Check if there are additional pages of results
         data = response.json()
 
+        if data.get("error_message"):
+            print(data.get("error_message"))
+
         if response.status_code == 200:
             for item in response.json().get("results"):
                 place_ids.append(item.get("place_id"))
@@ -154,6 +157,8 @@ def get_textsearch(query_string):
                 for item in data.get("results"):
                     print("Getting Place IDs :", item.get("place_id"))
                     place_ids.append(item.get("place_id"))
+        else:
+            print(response.json())
     except:
         pass
     return place_ids
@@ -203,18 +208,15 @@ def get_all_place(category, place):
                 place_ids += get_textsearch(query_string)
             except:
                 pass
-        # Get base on type
-        try:
-            query_string = f'{category}&type={place.lower()}&'
-            # add the place ids
-            place_ids += get_textsearch(query_string)
-        except:
-            pass
 
         # Deduplicate the place IDs
         place_ids = list(set(place_ids))
 
         for place_id in place_ids:
+            # todo: remove later
+            if type(all_places_details) == list:
+                if len(all_places_details) > 5:
+                    continue
             try:
                 time.sleep(sleep_time)
                 place_detail_dict = run_with_timeout(get_place_detail_and_save, detail_timeout, place_id)

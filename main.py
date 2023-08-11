@@ -1,3 +1,4 @@
+import os
 import time
 
 from scraper import get_all_place
@@ -6,7 +7,7 @@ import csv
 import json
 
 
-def create_new_csv(places_dict_list, file_name):
+def create_new_csv(places_dict_list, file_name, project_name):
     """
     this is used to create a  csv using the file name and the current places dictionary
     """
@@ -15,11 +16,14 @@ def create_new_csv(places_dict_list, file_name):
         fieldnames = places_dict_list[0].keys()
         # write into the csv file
 
+        file_path = f"{project_name}/{file_name}"
+
         print("The file name is :", file_name)
+        print("The file path is :", file_path)
         print("Converting scraped data to csv ")
         print("🤭===================================🤭===================================🤭")
         print("🤭===================================🤭===================================🤭")
-        with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
+        with open(file_path, 'w', newline='', encoding='utf-8') as csv_file:
             csv_writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
 
             # Write the CSV header
@@ -33,14 +37,13 @@ def create_new_csv(places_dict_list, file_name):
         pass
 
 
-def create_item_task(csv_file_path, file_name):
+def create_item_task(csv_file_path, project_name):
     """
     This function updates items based on data from a CSV file.
 
 
     :param csv_file_path: Path to the CSV file.
     :return: List of updated places.
-
 
 
     """
@@ -60,7 +63,13 @@ def create_item_task(csv_file_path, file_name):
             all_places.append(row[1])
         # loop through all the categories each category will go through for all places
         for category in all_categories:
+            # if the category is none continue
+            if category == '' or category is None:
+                continue
             for place in all_places:
+                # if the place is none continue
+                if place == '' or place is None:
+                    continue
                 try:
                     place_dict = get_all_place(category, place)
                     if place_dict:
@@ -68,7 +77,8 @@ def create_item_task(csv_file_path, file_name):
                     with open("all_places.json", 'w') as json_file:
                         #  dump the json and also write the csv
                         json.dump(all_places_dict, json_file, indent=4)
-                        create_new_csv(all_places_dict, file_name)
+                        file_name = f"{category}_{place}.csv".replace(" ", "_")
+                        create_new_csv(place_dict, file_name, project_name)
                 except Exception as e:
                     print("Error:", e)
                     # In case of an error, write the data to a JSON file
@@ -91,10 +101,18 @@ def convert_searched_dictionary_to_csv():
     """
     # write into the csv file
     current_time = str(time.time()).replace(".", "")
-    file_name = f"scraped_data_{current_time}.csv"
 
+    project_name = f"project_name_{current_time}"
+    # create a directory for the project
+    if not os.path.exists(project_name):
+        os.mkdir(project_name)
+        print("🤭===================================🤭===================================🤭")
+        print("The project Name: ", project_name)
+        print("🤭===================================🤭===================================🤭")
     # always replace this with the csv
-    all_places_dict = create_item_task(csv_file_path="csv_file.csv", file_name=file_name)
+    all_places_dict = create_item_task(csv_file_path="csv_file.csv", project_name=project_name)
+    file_name = "z_all_datas.csv"
+    create_new_csv(all_places_dict, file_name, project_name)
 
 
 # run the search query

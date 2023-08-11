@@ -70,6 +70,7 @@ python main.py
 The script will start fetching data from Google Maps using the provided API key and save the results to
 the `csv_file.csv` file in the root directory.
 
+Note: make sure you have [csv_file.csv](csv_file.csv)
 Remember that this script uses web scraping techniques, and Google's policies on web scraping and API usage may change.
 Make sure you review and comply with Google's terms of use and API usage policies.
 
