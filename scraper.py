@@ -214,7 +214,7 @@ def get_all_place(category, place):
         for place_id in place_ids:
             try:
                 time.sleep(sleep_time)
-                print("Get place detail ", place_id)
+                print("Get place detail ",place_id)
                 place_detail_dict = get_place_detail_and_save(place_id)
                 # if the place detail was returned
 
@@ -234,12 +234,13 @@ def get_place_detail_and_save(place_id):
     :param place_id:
     :return:
     """
+    print("Reach here")
+
     # Set the signal to be sent after timeout_duration
     signal.signal(signal.SIGALRM, timeout_handler)
     # max seconds is 60
     signal.alarm(30)
     place_detail_dict = None
-
     try:
         # Set up API parameters
         params = {
