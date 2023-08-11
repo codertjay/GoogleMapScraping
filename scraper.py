@@ -1,12 +1,28 @@
 import re
-import signal
 import time
+from concurrent import futures
 from urllib.parse import urlencode
 
 import requests
 from decouple import config
 
 api_key = config("GOOGLE_MAP_API_KEY")
+
+
+def run_with_timeout(func, timeout, *args, **kwargs):
+    # Start a thread executing the function
+    with futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(func, *args, **kwargs)
+        try:
+            # Get the result from the future within the timeout duration
+            result = future.result(timeout)
+        except futures.TimeoutError:
+            print("Function execution took longer than expected! Stopping...")
+            # Cancel the future if it isn't finished
+            future.cancel()
+            return None
+        return result
+
 
 #  Once the proxy is available
 # Proxy server to use
@@ -36,18 +52,6 @@ rating_list = [
 sleep_time = config("SLEEP_TIMER", cast=int, default=0)
 timeout = config("TIME_OUT", cast=int, default=3)
 
-timeout_duration = 8
-
-
-class TimeoutException(Exception):
-    """Exception class for a timeout"""
-    pass
-
-
-def timeout_handler(signum, frame):
-    """Handler function to be called when alarm signal is received"""
-    raise TimeoutException()
-
 
 def get_email_from_website(url):
     email = None
@@ -63,8 +67,7 @@ def get_email_from_website(url):
                 email = email
                 break
 
-    except TimeoutException:
-        print("Operation timed out")
+
     except Exception as a:
         print("a", a)
     return email
@@ -119,8 +122,7 @@ def get_social_media_links(url):
                         social_media_links += f"YouTube_Channel:  https://www.youtube.com/user/{value[-1]}/  "
             except:
                 pass
-    except TimeoutException:
-        print("Operation timed out")
+
     except Exception as a:
         print("Error getting social")
     return social_media_links
@@ -214,13 +216,12 @@ def get_all_place(category, place):
         for place_id in place_ids:
             try:
                 time.sleep(sleep_time)
-                print("Get place detail ",place_id)
-                place_detail_dict = get_place_detail_and_save(place_id)
+                place_detail_dict = run_with_timeout(get_place_detail_and_save, 20, place_id)
                 # if the place detail was returned
-
                 if place_detail_dict:
-                    print("place_detail_dict", place_detail_dict)
                     all_places_details.append(place_detail_dict)
+                else:
+                    print("No place_detail_dict")
             except:
                 pass
     except:
@@ -234,12 +235,7 @@ def get_place_detail_and_save(place_id):
     :param place_id:
     :return:
     """
-    print("Reach here")
 
-    # Set the signal to be sent after timeout_duration
-    signal.signal(signal.SIGALRM, timeout_handler)
-    # max seconds is 60
-    signal.alarm(30)
     place_detail_dict = None
     try:
         # Set up API parameters
@@ -343,10 +339,7 @@ def get_place_detail_and_save(place_id):
             except Exception as a:
                 print("error occurred ", a)
 
-    except TimeoutException:
-        print("Operation timed out")
+
     except Exception as a:
         print("a", a)
-    finally:
-        signal.alarm(0)  # Cancel the alarm in case of any outcome (success or exception)
     return place_detail_dict
