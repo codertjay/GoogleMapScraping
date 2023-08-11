@@ -50,6 +50,7 @@ rating_list = [
 ]
 
 sleep_time = config("SLEEP_TIMER", cast=int, default=0)
+detail_timeout = config("DETAIL_TIMEOUT", cast=int, default=25)
 timeout = config("TIME_OUT", cast=int, default=3)
 
 
@@ -216,7 +217,7 @@ def get_all_place(category, place):
         for place_id in place_ids:
             try:
                 time.sleep(sleep_time)
-                place_detail_dict = run_with_timeout(get_place_detail_and_save, 20, place_id)
+                place_detail_dict = run_with_timeout(get_place_detail_and_save, detail_timeout, place_id)
                 # if the place detail was returned
                 if place_detail_dict:
                     all_places_details.append(place_detail_dict)
